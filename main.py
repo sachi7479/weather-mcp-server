@@ -366,8 +366,7 @@ async def oauth_token(request: Request):
 @app.get("/api/tools/list")
 @app.post("/api/tools/list")
 async def list_tools():
-    """List available MCP tools"""
-    tools = [
+    return [
         {
             "name": "get_weather",
             "description": "Get current weather for a city",
@@ -399,7 +398,7 @@ async def list_tools():
                     },
                     "days": {
                         "type": "integer",
-                        "description": "Number of forecast days (1-5)",
+                        "description": "Number of forecast days (1–5)",
                         "minimum": 1,
                         "maximum": 5,
                         "default": 3
@@ -427,7 +426,6 @@ async def list_tools():
             }
         }
     ]
-    return JSONResponse(tools)
 
 @app.post("/api/tools/call")
 async def call_tool(request: Request):

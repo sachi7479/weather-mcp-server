@@ -373,66 +373,68 @@ async def oauth_token(request: Request):
 async def list_tools():
     print("TOOLS_SCHEMA_VERSION = REQUIRED_INSIDE_INPUTSCHEMA")
 
-    return [
-        {
-            "name": "get_weather",
-            "description": "Get current weather for a city",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "city": {
-                        "type": "string",
-                        "description": "City name (e.g., 'London', 'New York')"
+    return {
+        "tools": [
+            {
+                "name": "get_weather",
+                "description": "Get current weather for a city",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "city": {
+                            "type": "string",
+                            "description": "City name (e.g., 'London', 'New York')"
+                        },
+                        "country_code": {
+                            "type": "string",
+                            "description": "Optional country code (e.g., 'US', 'GB')",
+                            "default": ""
+                        }
                     },
-                    "country_code": {
-                        "type": "string",
-                        "description": "Optional country code (e.g., 'US', 'GB')",
-                        "default": ""
-                    }
-                },
-                "required": ["city"]
-            }
-        },
-        {
-            "name": "get_weather_forecast",
-            "description": "Get weather forecast for a city",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "city": {
-                        "type": "string",
-                        "description": "City name"
+                    "required": ["city"]
+                }
+            },
+            {
+                "name": "get_weather_forecast",
+                "description": "Get weather forecast for a city",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "city": {
+                            "type": "string",
+                            "description": "City name"
+                        },
+                        "days": {
+                            "type": "integer",
+                            "description": "Number of forecast days (1–5)",
+                            "minimum": 1,
+                            "maximum": 5,
+                            "default": 3
+                        }
                     },
-                    "days": {
-                        "type": "integer",
-                        "description": "Number of forecast days (1–5)",
-                        "minimum": 1,
-                        "maximum": 5,
-                        "default": 3
-                    }
-                },
-                "required": ["city"]
-            }
-        },
-        {
-            "name": "compare_weather",
-            "description": "Compare weather between two cities",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "city1": {
-                        "type": "string",
-                        "description": "First city"
+                    "required": ["city"]
+                }
+            },
+            {
+                "name": "compare_weather",
+                "description": "Compare weather between two cities",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "city1": {
+                            "type": "string",
+                            "description": "First city"
+                        },
+                        "city2": {
+                            "type": "string",
+                            "description": "Second city"
+                        }
                     },
-                    "city2": {
-                        "type": "string",
-                        "description": "Second city"
-                    }
-                },
-                "required": ["city1", "city2"]
+                    "required": ["city1", "city2"]
+                }
             }
-        }
-    ]
+        ]
+    }
 
 @app.post("/api/tools/call")
 async def call_tool(request: Request):

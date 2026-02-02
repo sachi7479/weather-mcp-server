@@ -570,6 +570,40 @@ async def mcp_sse_endpoint(request: Request):
         }
     )
 
+
+@app.get("/.well-known/openid-configuration")
+async def openid_configuration(request: Request):
+    base = str(request.base_url).rstrip("/")
+    return {
+        "issuer": base,
+        "authorization_endpoint": f"{base}/oauth/authorize",
+        "token_endpoint": f"{base}/oauth/token",
+        "response_types_supported": ["code"],
+        "grant_types_supported": ["authorization_code"],
+        "scopes_supported": ["openid", "mcp:stream", "weather:read"],
+        "token_endpoint_auth_methods_supported": ["client_secret_post"],
+        "code_challenge_methods_supported": ["S256"]
+    }
+
+
+@app.get("/.well-known/oauth-authorization-server")
+async def oauth_authorization_server(request: Request):
+    base = str(request.base_url).rstrip("/")
+    return {
+        "issuer": base,
+        "authorization_endpoint": f"{base}/oauth/authorize",
+        "token_endpoint": f"{base}/oauth/token"
+    }
+
+
+@app.get("/.well-known/oauth-protected-resource")
+async def oauth_protected_resource(request: Request):
+    base = str(request.base_url).rstrip("/")
+    return {
+        "resource": base,
+        "authorization_servers": [base]
+    }
+
 # ==================== HEALTH & INFO ====================
 @app.get("/health")
 async def health_check():
@@ -608,41 +642,36 @@ async def health_check():
         }
     })
 
-@app.get("/")
-async def root():
-    """Root endpoint with documentation"""
-    base_url = "https://web-production-204c7.up.railway.app"
-    
+from fastapi import Request
+
+@app.api_route("/", methods=["GET", "POST"])
+async def root(request: Request):
+    """Root endpoint with documentation (GET + POST required by QuickSight)"""
+    base_url = str(request.base_url).rstrip("/")
+
     return {
         "service": "Weather MCP Server",
         "version": "2.0.0",
         "description": "MCP server with weather tools for AWS QuickSight",
-        "documentation": {
-            "quick_start": {
-                "1": "Generate OAuth credentials: POST /api/clients/register",
-                "2": "Use credentials in AWS QuickSight",
-                "3": "Test connection with AWS",
-                "4": "Use weather tools in QuickSight chat"
-            },
-            "aws_quicksight_setup": {
-                "mcp_endpoint": f"{base_url}/sse",
-                "oauth": {
-                    "authorization_url": f"{base_url}/oauth/authorize",
-                    "token_url": f"{base_url}/oauth/token",
-                    "redirect_urls": [
-                        "https://us-east-1.quicksight.aws.amazon.com/sn/oauthcallback"
-                    ]
-                }
-            },
-            "api_endpoints": {
-                "health": f"{base_url}/health",
-                "client_registration": f"{base_url}/api/clients/register",
-                "list_clients": f"{base_url}/api/clients",
-                "mcp_sse": f"{base_url}/sse",
-                "tools": f"{base_url}/api/tools/list"
-            }
+        "oauth": {
+            "authorization_url": f"{base_url}/oauth/authorize",
+            "token_url": f"{base_url}/oauth/token",
+            "redirect_urls": [
+                "https://us-east-1.quicksight.aws.amazon.com/sn/oauthcallback"
+            ]
+        },
+        "mcp": {
+            "sse": f"{base_url}/sse",
+            "tools": f"{base_url}/api/tools/list"
+        },
+        "api_endpoints": {
+            "health": f"{base_url}/health",
+            "client_registration": f"{base_url}/api/clients/register",
+            "list_clients": f"{base_url}/api/clients",
+            "tools_call": f"{base_url}/api/tools/call"
         }
     }
+
 
 if __name__ == "__main__":
     import uvicorn

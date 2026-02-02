@@ -366,6 +366,8 @@ async def oauth_token(request: Request):
 @app.get("/api/tools/list")
 @app.post("/api/tools/list")
 async def list_tools():
+    print("TOOLS_SCHEMA_VERSION = REQUIRED_INSIDE_INPUTSCHEMA")
+
     return [
         {
             "name": "get_weather",

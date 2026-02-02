@@ -363,6 +363,7 @@ async def oauth_token(request: Request):
         raise HTTPException(status_code=400, detail=f"Token request error: {str(e)}")
 
 # ==================== MCP TOOLS ENDPOINTS ====================
+@app.get("/api/tools/list")
 @app.post("/api/tools/list")
 async def list_tools():
     """List available MCP tools"""

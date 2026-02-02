@@ -1,6 +1,7 @@
 # main.py - Complete Weather MCP Server with OAuth Client Management
-from fastapi import FastAPI, Request, HTTPException, Response
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 import os
 import json
@@ -11,6 +12,10 @@ from typing import Dict, Any, Optional
 import asyncio
 from datetime import datetime
 import secrets
+
+
+
+
 
 app = FastAPI(
     title="Weather MCP Server",
@@ -63,6 +68,7 @@ else:
 
 # Store for authorization codes
 authorization_codes = {}
+
 
 # ==================== WEATHER SERVICE ====================
 class WeatherService:
@@ -364,7 +370,6 @@ async def oauth_token(request: Request):
 
 # ==================== MCP TOOLS ENDPOINTS ====================
 @app.get("/api/tools/list")
-@app.post("/api/tools/list")
 async def list_tools():
     print("TOOLS_SCHEMA_VERSION = REQUIRED_INSIDE_INPUTSCHEMA")
 
@@ -536,18 +541,15 @@ async def call_tool(request: Request):
 # ==================== MCP SSE ENDPOINT ====================
 @app.get("/sse")
 async def mcp_sse_endpoint(request: Request):
-    """MCP Server-Sent Events endpoint"""
     async def event_generator():
-        # Send initial connection event
         yield f"data: {json.dumps({
             'type': 'mcp_connected',
             'server': 'Weather MCP Server',
             'version': '2.0.0',
             'timestamp': time.time(),
-            'available_tools': ['get_weather', 'compare_weather']
+            'available_tools': ['get_weather', 'get_weather_forecast', 'compare_weather']
         })}\n\n"
-        
-        # Keep connection alive with heartbeats
+
         try:
             while True:
                 yield f"data: {json.dumps({
@@ -556,11 +558,10 @@ async def mcp_sse_endpoint(request: Request):
                 })}\n\n"
                 await asyncio.sleep(30)
         except asyncio.CancelledError:
-            # Client disconnected
             pass
-    
-    return Response(
-        content=event_generator(),
+
+    return StreamingResponse(
+        event_generator(),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

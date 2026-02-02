@@ -436,6 +436,69 @@ async def list_tools():
         ]
     }
 
+
+@app.get("/api/actions")
+async def list_actions():
+    return {
+        "actions": [
+            {
+                "actionId": "get_weather",
+                "name": "Get Weather",
+                "description": "Get current weather for a city",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "city": {
+                            "type": "string",
+                            "description": "City name"
+                        },
+                        "country_code": {
+                            "type": "string",
+                            "description": "Optional country code",
+                            "default": ""
+                        }
+                    },
+                    "required": ["city"]
+                }
+            },
+            {
+                "actionId": "get_weather_forecast",
+                "name": "Get Weather Forecast",
+                "description": "Get weather forecast for a city",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "city": {
+                            "type": "string"
+                        },
+                        "days": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 5,
+                            "default": 3
+                        }
+                    },
+                    "required": ["city"]
+                }
+            },
+            {
+                "actionId": "compare_weather",
+                "name": "Compare Weather",
+                "description": "Compare weather between two cities",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "city1": {"type": "string"},
+                        "city2": {"type": "string"}
+                    },
+                    "required": ["city1", "city2"]
+                }
+            }
+        ]
+    }
+
+
+
 @app.post("/api/tools/call")
 async def call_tool(request: Request):
     """Execute an MCP tool"""

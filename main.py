@@ -426,7 +426,7 @@ async def list_tools():
             }
         }
     ]
-    return JSONResponse({"tools": tools})
+    return JSONResponse(tools)
 
 @app.post("/api/tools/call")
 async def call_tool(request: Request):

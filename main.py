@@ -298,143 +298,101 @@ async def oauth_authorize(
 
 @app.post("/oauth/token")
 async def oauth_token(request: Request):
-    """
-    OAuth 2.0 Token Endpoint with PKCE support
-    """
-    try:
-        # Parse request data
-        form_data = await request.form()
-        grant_type = form_data.get("grant_type")
-        code = form_data.get("code")
-        redirect_uri = form_data.get("redirect_uri")
-        client_id = form_data.get("client_id")
-        client_secret = form_data.get("client_secret")
-        code_verifier = form_data.get("code_verifier")  # PKCE
-        
-        # Validate grant type
-        if grant_type != "authorization_code":
-            raise HTTPException(status_code=400, detail="Unsupported grant type. Only 'authorization_code' is supported.")
-        
-        # Validate client credentials
-        if client_id not in OAUTH_CLIENTS:
-            raise HTTPException(status_code=400, detail="Invalid client ID")
-        
-        client = OAUTH_CLIENTS[client_id]
-        
-        if client["client_secret"] != client_secret:
-            raise HTTPException(status_code=400, detail="Invalid client secret")
-        
-        # Validate authorization code
-        if code not in authorization_codes:
-            raise HTTPException(status_code=400, detail="Invalid or expired authorization code")
-        
-        code_data = authorization_codes.pop(code)
-        
-        # Check code expiration
-        if time.time() > code_data["expires_at"]:
-            raise HTTPException(status_code=400, detail="Authorization code expired")
-        
-        # Validate redirect URI matches
-        if code_data["redirect_uri"] != redirect_uri:
-            raise HTTPException(status_code=400, detail="Redirect URI mismatch")
-        
-        # Validate client ID matches
-        if code_data["client_id"] != client_id:
-            raise HTTPException(status_code=400, detail="Client ID mismatch")
-        
-        # ✅ Handle PKCE if AWS uses it
-        if code_data.get("code_challenge"):
-            # In a real implementation, you'd verify code_verifier against code_challenge
-            # For now, we'll accept it
-            print(f"INFO: PKCE used, challenge: {code_data['code_challenge']}")
-        
-        # Generate tokens
-        access_token = f"mcp_at_{secrets.token_urlsafe(32)}"
-        
-        # ✅ Return scopes that AWS expects
-        scope = code_data.get("scope", "openid mcp:stream weather:read")
-        
+    form = await request.form()
+
+    grant_type = form.get("grant_type")
+    client_id = form.get("client_id")
+    client_secret = form.get("client_secret")
+
+    if client_id not in OAUTH_CLIENTS:
+        raise HTTPException(status_code=401, detail="invalid_client")
+
+    client = OAUTH_CLIENTS[client_id]
+
+    if client["client_secret"] != client_secret:
+        raise HTTPException(status_code=401, detail="invalid_client")
+
+    # ===========================
+    # SERVICE AUTH FLOW (REQUIRED)
+    # ===========================
+    if grant_type == "client_credentials":
+
+        scope = form.get("scope", "openid mcp:stream")
+
+        # IMPORTANT:
+        # QuickSight does NOT require a real JWT for custom MCP
+        # but token must look stable and consistent
+        access_token = f"mcp_service_{secrets.token_urlsafe(32)}"
+
         return JSONResponse({
             "access_token": access_token,
-            "token_type": "bearer",
-            "expires_in": 3600,  # 1 hour
-            "scope": scope,
-            # AWS might expect these additional fields
-            "id_token": access_token,  # Simple ID token for openid scope
+            "token_type": "Bearer",
+            "expires_in": 3600,
+            "scope": scope
         })
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Token request error: {str(e)}")
+
+    # ===========================
+    # LEGACY USER FLOW (KEEP FOR COMPAT)
+    # ===========================
+    if grant_type == "authorization_code":
+        access_token = f"mcp_user_{secrets.token_urlsafe(32)}"
+
+        return JSONResponse({
+            "access_token": access_token,
+            "token_type": "Bearer",
+            "expires_in": 3600,
+            "scope": "openid mcp:stream"
+        })
+
+    raise HTTPException(status_code=400, detail="unsupported_grant_type")
+
 
 # ==================== MCP TOOLS ENDPOINTS ====================
 @app.get("/api/tools/list")
 async def list_tools():
-    print("TOOLS_SCHEMA_VERSION = REQUIRED_INSIDE_INPUTSCHEMA")
-
-    return {
-        "tools": [
-            {
-                "name": "get_weather",
-                "description": "Get current weather for a city",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {
-                        "city": {
-                            "type": "string",
-                            "description": "City name (e.g., 'London', 'New York')"
-                        },
-                        "country_code": {
-                            "type": "string",
-                            "description": "Optional country code (e.g., 'US', 'GB')",
-                            "default": ""
-                        }
-                    },
-                    "required": ["city"]
-                }
-            },
-            {
-                "name": "get_weather_forecast",
-                "description": "Get weather forecast for a city",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {
-                        "city": {
-                            "type": "string",
-                            "description": "City name"
-                        },
-                        "days": {
-                            "type": "integer",
-                            "description": "Number of forecast days (1–5)",
-                            "minimum": 1,
-                            "maximum": 5,
-                            "default": 3
-                        }
-                    },
-                    "required": ["city"]
-                }
-            },
-            {
-                "name": "compare_weather",
-                "description": "Compare weather between two cities",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {
-                        "city1": {
-                            "type": "string",
-                            "description": "First city"
-                        },
-                        "city2": {
-                            "type": "string",
-                            "description": "Second city"
-                        }
-                    },
-                    "required": ["city1", "city2"]
-                }
+    return [
+        {
+            "name": "get_weather",
+            "description": "Get current weather for a city",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "city": {"type": "string"},
+                    "country_code": {"type": "string", "default": ""}
+                },
+                "required": ["city"]
             }
-        ]
-    }
+        },
+        {
+            "name": "get_weather_forecast",
+            "description": "Get weather forecast for a city",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "city": {"type": "string"},
+                    "days": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 5,
+                        "default": 3
+                    }
+                },
+                "required": ["city"]
+            }
+        },
+        {
+            "name": "compare_weather",
+            "description": "Compare weather between two cities",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "city1": {"type": "string"},
+                    "city2": {"type": "string"}
+                },
+                "required": ["city1","city2"]
+            }
+        }
+    ]
 
 
 @app.get("/api/actions")
@@ -631,16 +589,22 @@ async def mcp_sse_endpoint(request: Request):
 @app.get("/.well-known/openid-configuration")
 async def openid_configuration(request: Request):
     base = str(request.base_url).rstrip("/")
+
     return {
         "issuer": base,
         "authorization_endpoint": f"{base}/oauth/authorize",
         "token_endpoint": f"{base}/oauth/token",
+        "grant_types_supported": [
+            "client_credentials",
+            "authorization_code"
+        ],
         "response_types_supported": ["code"],
-        "grant_types_supported": ["authorization_code"],
         "scopes_supported": ["openid", "mcp:stream", "weather:read"],
-        "token_endpoint_auth_methods_supported": ["client_secret_post"],
-        "code_challenge_methods_supported": ["S256"]
+        "token_endpoint_auth_methods_supported": [
+            "client_secret_post"
+        ]
     }
+
 
 
 @app.get("/.well-known/oauth-authorization-server")
@@ -701,7 +665,7 @@ async def health_check():
 
 from fastapi import Request
 
-@app.api_route("/", methods=["GET", "POST"])
+@app.api_route("/", methods=["GET", "POST", "HEAD"])
 async def root(request: Request):
     """Root endpoint with documentation (GET + POST required by QuickSight)"""
     base_url = str(request.base_url).rstrip("/")

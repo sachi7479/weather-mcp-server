@@ -6,7 +6,7 @@ def server_info() -> str:
     info = {
         "name": "Weather MCP Server",
         "description": "A server that provides weather information and forecasts.",
-        "tools": ["get_weather", "get_forecast"],
+        "tools": ["get_weather", "compare_weather"],
         "version": "1.0.0"
     }
     return json.dumps(info, indent=2)
